@@ -1,0 +1,11 @@
+spring:
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  application:
+    name: api-gateway
+  cloud:
+    config:
+      uri: ${SPRING_CLOUD_CONFIG_URI}
+      username: ${CONFIG_NAME}
+      password: ${CONFIG_PASSWORD}
+      fail-fast: true
