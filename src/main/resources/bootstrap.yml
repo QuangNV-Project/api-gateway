@@ -5,7 +5,7 @@ spring:
     name: api-gateway
   cloud:
     config:
-      uri: ${SPRING_CLOUD_CONFIG_URI}
+      uri: ${CONFIG_SERVICE_URL}
       username: ${CONFIG_NAME}
       password: ${CONFIG_PASSWORD}
       fail-fast: true
