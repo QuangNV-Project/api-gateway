@@ -9,3 +9,11 @@ spring:
       username: ${CONFIG_NAME}
       password: ${CONFIG_PASSWORD}
       fail-fast: true
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.http.server.reactive: DEBUG
+    org.springframework:
+      cloud: ${LOG_LEVEL}
+      security: ${LOG_LEVEL}
+    com.quangnv.service: ${LOG_LEVEL}

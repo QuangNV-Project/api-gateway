@@ -13,43 +13,46 @@ import org.springframework.context.annotation.Configuration;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class GatewayConfig {
-    AuthenticationFilter authFilter;
+    private AuthenticationFilter authFilter;
 
     @Bean
     public RouteLocator customRouteLocator(RouteLocatorBuilder builder) {
         return builder.routes()
+
                 // Auth Service - Public endpoints
-                .route("auth-login", r -> r.path("/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/auth/oauth2/**")
+                .route("auth-login", r -> r.path(
+                                "/api/auth/**"
+                        )
+                        .filters(f -> f.stripPrefix(2))
                         .uri("lb://auth-service"))
-                
-                // Auth Service - Protected endpoints
-                .route("auth-protected", r -> r.path("/api/auth/**")
-                        .filters(f -> f.filter(authFilter))
-                        .uri("lb://auth-service"))
-                
-                // Product Service - Public endpoints (viewing products)
-                .route("product-public", r -> r.path("/api/products/public/**")
-                        .uri("lb://product-service"))
-                
-                // Product Service - Protected endpoints
+
+
+                // Platform Service
+                .route("platform-service", r -> r.path("/api/platform/**")
+                        .filters(f -> f.stripPrefix(2))
+                        .uri("lb://platform-service"))
                 .route("product-protected", r -> r.path("/api/products/**")
                         .filters(f -> f.filter(authFilter))
                         .uri("lb://product-service"))
-                
-                // Order Service - All protected
+
+                // Order Service
                 .route("order-service", r -> r.path("/api/orders/**")
                         .filters(f -> f.filter(authFilter))
                         .uri("lb://order-service"))
-                
-                // Payment Service - All protected
+
+                // Payment Service
                 .route("payment-service", r -> r.path("/api/payments/**")
                         .filters(f -> f.filter(authFilter))
                         .uri("lb://payment-service"))
-                
-                // Notification Service - Protected
+
+                // Notification Service
                 .route("notification-service", r -> r.path("/api/notifications/**")
                         .filters(f -> f.filter(authFilter))
                         .uri("lb://notification-service"))
+                .route("gateway-health", r -> r.path("/api/health/**")
+                        .uri("no://op")) // không forward đi đâu cả
+
                 .build();
     }
 }
+
