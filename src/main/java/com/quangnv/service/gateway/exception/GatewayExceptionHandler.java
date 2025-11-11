@@ -18,4 +18,11 @@ public class GatewayExceptionHandler {
         ApiResponse<Object> response = ApiResponse.error(ex.getMessage(), HttpStatus.BAD_REQUEST.value());
         return ResponseEntity.badRequest().body(response);
     }
+
+    @ExceptionHandler(PatValidationException.class)
+    public ResponseEntity<ApiResponse<Object>> handlePatValidationException(PatValidationException ex) {
+        log.error("PatValidationException exception: {}", ex.getMessage());
+        ApiResponse<Object> response = ApiResponse.error(ex.getMessage(), HttpStatus.UNAUTHORIZED.value());
+        return ResponseEntity.badRequest().body(response);
+    }
 }
