@@ -2,13 +2,9 @@ package com.quangnv.service.gateway.filter;
 
 import com.quangnv.service.gateway.data.TenantDto;
 import com.quangnv.service.gateway.exception.TenantException;
-import com.quangnv.service.gateway.service.impl.TenantClientService;
-import com.quangnv.service.utility_shared.util.JwtUtil;
 import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
