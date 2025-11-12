@@ -1,36 +1,45 @@
 package com.quangnv.service.gateway.filter;
 
-import com.quangnv.service.gateway.service.impl.AuthService;
-import com.quangnv.service.utility_shared.util.JwtUtil;
+
 import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
-import lombok.experimental.FieldDefaults;
+
+import java.util.Collection;
+
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cloud.gateway.filter.GatewayFilter;
-import org.springframework.cloud.gateway.filter.GatewayFilterChain;
-import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
-import org.springframework.core.io.buffer.DataBuffer;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.server.reactive.ServerHttpRequest;
-import org.springframework.http.server.reactive.ServerHttpResponse;
-import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.server.ResponseStatusException;
-import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+import lombok.experimental.FieldDefaults;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Collection;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
+import com.quangnv.service.gateway.data.UserDto;
+import org.springframework.stereotype.Component;
+import org.springframework.core.io.buffer.DataBuffer;
+import com.quangnv.service.utility_shared.util.JwtUtil;
+import org.springframework.web.server.ServerWebExchange;
+import com.quangnv.service.gateway.data.PatValidationRequest;
+import org.springframework.cloud.gateway.filter.GatewayFilter;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.cloud.gateway.filter.GatewayFilterChain;
+import org.springframework.http.server.reactive.ServerHttpResponse;
+import com.quangnv.service.gateway.exception.PatValidationException;
+import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class AuthenticationFilter extends AbstractGatewayFilterFactory<AuthenticationFilter.Config> {
     JwtUtil jwtUtil;
     WebClient.Builder webClientBuilder;
-    AuthService authService;
+
+    public AuthenticationFilter(JwtUtil jwtUtil, WebClient.Builder webClientBuilder) {
+        super(Config.class);
+        this.jwtUtil = jwtUtil;
+        this.webClientBuilder = webClientBuilder;
+    }
 
     @Override
     public GatewayFilter apply(Config config) {
@@ -84,7 +93,7 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
      * Xử lý xác thực PAT (Stateful, gọi sang auth-service)
      */
     private Mono<Void> handlePatAuth(ServerWebExchange exchange, GatewayFilterChain chain, String rawToken) {
-        return authService.validateToken(rawToken).flatMap(userDto -> {
+        return validateToken(rawToken).flatMap(userDto -> {
             String rolesString;
             if (userDto.getRoles() == null || userDto.getRoles().isEmpty()) {
                 return Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User has no roles"));
@@ -114,5 +123,15 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
      * Lớp Config, có thể để trống nếu không cần cấu hình gì thêm
      */
     public static class Config {
+    }
+
+    private Mono<UserDto> validateToken(String rawToken) {
+        return webClientBuilder.build()
+                .post()
+                .uri("lb://auth-service/api/auth/validate-pat")
+                .bodyValue(new PatValidationRequest(rawToken))
+                .retrieve()
+                .bodyToMono(UserDto.class)
+                .onErrorResume(e -> Mono.error(new PatValidationException("Invalid Personal Access Token")));
     }
 }
