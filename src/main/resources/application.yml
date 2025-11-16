@@ -7,9 +7,12 @@ spring:
     import: "optional:configserver:"
   cloud:
     config:
+      fail-fast: true
       discovery:
         enabled: true
         service-id: config-service
+      username: ${CONFIG_NAME}
+      password: ${CONFIG_PASSWORD}
 eureka:
   client:
     service-url:
