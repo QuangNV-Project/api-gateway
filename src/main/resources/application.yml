@@ -24,3 +24,6 @@ eureka:
     lease-renewal-interval-in-seconds: ${EUREKA_LEASE_RENEWAL_INTERVAL}
     lease-expiration-duration-in-seconds: ${EUREKA_LEASE_EXPIRATION_DURATION}
     hostname: ${EUREKA_HOSTNAME}
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
