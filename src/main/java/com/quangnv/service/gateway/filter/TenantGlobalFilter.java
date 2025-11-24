@@ -41,7 +41,7 @@ public class TenantGlobalFilter implements GlobalFilter, Ordered {
                     ServerHttpRequest modifiedRequest = exchange.getRequest().mutate()
                             .header(HeaderConstants.TENANT_ID, tenantDto.getTenantId().toString())
                             .header(HeaderConstants.DOMAIN_NAME, tenantDto.getDomainName())
-                            .header(HeaderConstants.PROJECT_TYPE, tenantDto.getProjectType().toString())
+                            .header(HeaderConstants.PROJECT_TYPE, tenantDto.getProjectType())
                             .header(HeaderConstants.PROJECT_ID, tenantDto.getProjectId().toString())
                             .build();
                     // Đi tiếp
