@@ -1,6 +1,5 @@
 package com.quangnv.service.gateway.data;
 
-import com.quangnv.service.utility_shared.constant.ProjectType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

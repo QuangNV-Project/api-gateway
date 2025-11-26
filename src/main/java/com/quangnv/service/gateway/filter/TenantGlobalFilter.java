@@ -58,7 +58,7 @@ public class TenantGlobalFilter implements GlobalFilter, Ordered {
         return -100;
     }
 
-//    @Cacheable("tenants")
+    @Cacheable("tenants")
     public Mono<TenantDto> getTenantIdByDomain(String domain) {
         log.info(">>> CACHE MISS. Calling Tenant Service for: {}", domain);
         return webClientBuilder
