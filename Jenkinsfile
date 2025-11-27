@@ -224,8 +224,8 @@ pipeline {
                         // Stop & remove old container
                         sh """
                             ssh -o StrictHostKeyChecking=no -i ${SSH_KEY} -p ${REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} '
-                                docker stop ${DOCKERHUB_IMAGE} || true
-                                docker rm ${DOCKERHUB_IMAGE} || true
+                                docker stop api-gateway || true
+                                docker rm api-gateway || true
                             '
                         """
 
@@ -278,8 +278,8 @@ pipeline {
                         // Stop & remove old container
                         sh """
                             ssh -o StrictHostKeyChecking=no -i ${SSH_KEY} -p ${REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST} '
-                                docker stop ${DOCKERHUB_IMAGE} || true
-                                docker rm ${DOCKERHUB_IMAGE} || true
+                                docker stop api-gateway || true
+                                docker rm api-gateway || true
                             '
                         """
 
