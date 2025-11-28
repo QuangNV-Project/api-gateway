@@ -12,7 +12,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 @LoadBalancerClient(name = "tenant-service", configuration = TenantWebClientConfiguration.class)
 public class WebClientTenantService {
     @Bean
-    @LoadBalanced // Apply the annotation to the builder, not the WebClient instance
+    @LoadBalanced
     public WebClient.Builder roleAuthorityServiceWebClientBuilder() {
         return WebClient.builder().baseUrl("http://" + ServiceConstant.ServiceName.TENANT_SERVICE.getService());
     }
