@@ -1,6 +1,8 @@
 package com.quangnv.service.gateway.filter;
 
 
+import com.quangnv.service.utility_shared.exception.NotFoundException;
+import com.quangnv.service.utility_shared.exception.UnauthorizedException;
 import lombok.AccessLevel;
 
 import java.util.Collection;
@@ -78,7 +80,7 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
         Collection<String> roles = jwtUtil.extractRoles(token);
         String rolesString;
         if (roles == null || roles.isEmpty()) {
-            return Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User has no roles"));
+            return Mono.error(new UnauthorizedException("User has no roles"));
         } else {
             rolesString = String.join(",", roles);
         }

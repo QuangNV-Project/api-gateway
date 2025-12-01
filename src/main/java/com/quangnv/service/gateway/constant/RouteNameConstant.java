@@ -15,4 +15,7 @@ public class RouteNameConstant {
 
     // Payment
     public static final String PAYMENT = "payment";
+
+    // Finance tracking
+    public static final String FINANCE_TRACKING = "fin-track";
 }

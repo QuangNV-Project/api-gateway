@@ -1,19 +1,20 @@
 package com.quangnv.service.gateway.config;
 
-import com.quangnv.service.gateway.constant.RouteNameConstant;
-import com.quangnv.service.utility_shared.constant.ServiceConstant;
 import lombok.AccessLevel;
+
+import java.util.function.Function;
+
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.cloud.gateway.route.builder.GatewayFilterSpec;
-import org.springframework.cloud.gateway.route.builder.UriSpec;
 import org.springframework.context.annotation.Bean;
 import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.context.annotation.Configuration;
+import com.quangnv.service.gateway.constant.RouteNameConstant;
+import org.springframework.cloud.gateway.route.builder.UriSpec;
 import com.quangnv.service.gateway.filter.AuthenticationFilter;
+import com.quangnv.service.utility_shared.constant.ServiceConstant;
+import org.springframework.cloud.gateway.route.builder.GatewayFilterSpec;
 import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
-
-import java.util.function.Function;
 
 @Configuration
 @RequiredArgsConstructor
@@ -27,10 +28,11 @@ public class GatewayConfig {
 
         // Khai báo các route cho từng service
         createServiceRoutes(routesBuilder, RouteNameConstant.AUTH, ServiceConstant.ServiceName.AUTH_SERVICE);
-        createServiceRoutes(routesBuilder, RouteNameConstant.TENANT, ServiceConstant.ServiceName.TENANT_SERVICE);
         createServiceRoutes(routesBuilder, RouteNameConstant.BLOG, ServiceConstant.ServiceName.BLOG_SERVICE);
-        createServiceRoutes(routesBuilder, RouteNameConstant.PLATFORM, ServiceConstant.ServiceName.PLATFORM_SERVICE);
+        createServiceRoutes(routesBuilder, RouteNameConstant.TENANT, ServiceConstant.ServiceName.TENANT_SERVICE);
         createServiceRoutes(routesBuilder, RouteNameConstant.PAYMENT, ServiceConstant.ServiceName.PAYMENT_SERVICE);
+        createServiceRoutes(routesBuilder, RouteNameConstant.PLATFORM, ServiceConstant.ServiceName.PLATFORM_SERVICE);
+        createServiceRoutes(routesBuilder, RouteNameConstant.FINANCE_TRACKING, ServiceConstant.ServiceName.FIN_TRACK_SERVICE);
 
         // Special routes
         routesBuilder.route("gateway-health", r -> r.path("/api/health/**")
