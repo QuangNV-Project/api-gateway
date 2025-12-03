@@ -1,55 +1,76 @@
 package com.quangnv.service.gateway.config;
 
-import com.quangnv.service.gateway.filter.AuthenticationFilter;
 import lombok.AccessLevel;
+
+import java.util.function.Function;
+
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.cloud.gateway.route.RouteLocator;
-import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.context.annotation.Bean;
+import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.context.annotation.Configuration;
+import com.quangnv.service.gateway.constant.RouteNameConstant;
+import org.springframework.cloud.gateway.route.builder.UriSpec;
+import com.quangnv.service.gateway.filter.AuthenticationFilter;
+import com.quangnv.service.utility_shared.constant.ServiceConstant;
+import org.springframework.cloud.gateway.route.builder.GatewayFilterSpec;
+import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 
 @Configuration
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class GatewayConfig {
-    AuthenticationFilter authFilter;
+    private AuthenticationFilter authFilter;
 
     @Bean
     public RouteLocator customRouteLocator(RouteLocatorBuilder builder) {
-        return builder.routes()
-                // Auth Service - Public endpoints
-                .route("auth-login", r -> r.path("/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/auth/oauth2/**")
-                        .uri("lb://auth-service"))
-                
-                // Auth Service - Protected endpoints
-                .route("auth-protected", r -> r.path("/api/auth/**")
-                        .filters(f -> f.filter(authFilter))
-                        .uri("lb://auth-service"))
-                
-                // Product Service - Public endpoints (viewing products)
-                .route("product-public", r -> r.path("/api/products/public/**")
-                        .uri("lb://product-service"))
-                
-                // Product Service - Protected endpoints
-                .route("product-protected", r -> r.path("/api/products/**")
-                        .filters(f -> f.filter(authFilter))
-                        .uri("lb://product-service"))
-                
-                // Order Service - All protected
-                .route("order-service", r -> r.path("/api/orders/**")
-                        .filters(f -> f.filter(authFilter))
-                        .uri("lb://order-service"))
-                
-                // Payment Service - All protected
-                .route("payment-service", r -> r.path("/api/payments/**")
-                        .filters(f -> f.filter(authFilter))
-                        .uri("lb://payment-service"))
-                
-                // Notification Service - Protected
-                .route("notification-service", r -> r.path("/api/notifications/**")
-                        .filters(f -> f.filter(authFilter))
-                        .uri("lb://notification-service"))
-                .build();
+        RouteLocatorBuilder.Builder routesBuilder = builder.routes();
+
+        // Khai báo các route cho từng service
+        createServiceRoutes(routesBuilder, RouteNameConstant.AUTH, ServiceConstant.ServiceName.AUTH_SERVICE);
+        createServiceRoutes(routesBuilder, RouteNameConstant.BLOG, ServiceConstant.ServiceName.BLOG_SERVICE);
+        createServiceRoutes(routesBuilder, RouteNameConstant.TENANT, ServiceConstant.ServiceName.TENANT_SERVICE);
+        createServiceRoutes(routesBuilder, RouteNameConstant.PAYMENT, ServiceConstant.ServiceName.PAYMENT_SERVICE);
+        createServiceRoutes(routesBuilder, RouteNameConstant.PLATFORM, ServiceConstant.ServiceName.PLATFORM_SERVICE);
+        createServiceRoutes(routesBuilder, RouteNameConstant.FINANCE_TRACKING, ServiceConstant.ServiceName.FIN_TRACK_SERVICE);
+
+        // Special routes
+        routesBuilder.route("gateway-health", r -> r.path("/api/health/**")
+                .uri("no://op"));
+        return routesBuilder.build();
+    }
+
+    /**
+     * Hàm helper để tạo 2 route (public/private) cho 1 service
+     */
+    private void createServiceRoutes(RouteLocatorBuilder.Builder builder,
+                                     String routeName,
+                                     ServiceConstant.ServiceName service) {
+
+        String serviceUri = service.toLoadBalancedUri();
+
+        // 1. Tạo route PUBLIC
+        builder.route(routeName, r -> r.path(
+                        "/api/" + routeName + "/public/**"
+                )
+                .filters(f -> f.stripPrefix(3))
+                .uri(serviceUri));
+
+        // 2. Tạo route PRIVATE
+        builder.route(routeName + "-private", r -> r.path(
+                        "/api/" + routeName + "/private/**"
+                )
+                .filters(applyAuthFilter()) // Áp dụng filter xác thực
+                .uri(serviceUri));
+    }
+
+    /**
+     * Áp dụng filter xác thực và strip prefix
+     */
+    private Function<GatewayFilterSpec, UriSpec> applyAuthFilter() {
+        return f -> (UriSpec) f
+                .stripPrefix(3)
+                .filter(authFilter.apply(new AuthenticationFilter.Config()));
     }
 }
+

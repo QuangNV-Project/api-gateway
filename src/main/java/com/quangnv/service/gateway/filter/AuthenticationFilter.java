@@ -1,71 +1,139 @@
 package com.quangnv.service.gateway.filter;
 
-import com.quangnv.service.utility_shared.util.JwtUtil;
+
+import com.quangnv.service.utility_shared.exception.NotFoundException;
+import com.quangnv.service.utility_shared.exception.UnauthorizedException;
 import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
-import lombok.experimental.FieldDefaults;
+
+import java.util.Collection;
+
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cloud.gateway.filter.GatewayFilter;
-import org.springframework.cloud.gateway.filter.GatewayFilterChain;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.server.reactive.ServerHttpRequest;
-import org.springframework.http.server.reactive.ServerHttpResponse;
-import org.springframework.stereotype.Component;
-import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+import lombok.experimental.FieldDefaults;
+
+import java.nio.charset.StandardCharsets;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
+import com.quangnv.service.gateway.data.UserDto;
+import org.springframework.stereotype.Component;
+import org.springframework.core.io.buffer.DataBuffer;
+import com.quangnv.service.utility_shared.util.JwtUtil;
+import org.springframework.web.server.ServerWebExchange;
+import com.quangnv.service.gateway.data.PatValidationRequest;
+import org.springframework.cloud.gateway.filter.GatewayFilter;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.cloud.gateway.filter.GatewayFilterChain;
+import org.springframework.http.server.reactive.ServerHttpResponse;
+import com.quangnv.service.gateway.exception.PatValidationException;
+import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
-public class AuthenticationFilter implements GatewayFilter {
+public class AuthenticationFilter extends AbstractGatewayFilterFactory<AuthenticationFilter.Config> {
     JwtUtil jwtUtil;
+    WebClient.Builder webClientBuilder;
+
+    public AuthenticationFilter(JwtUtil jwtUtil, WebClient.Builder webClientBuilder) {
+        super(Config.class);
+        this.jwtUtil = jwtUtil;
+        this.webClientBuilder = webClientBuilder;
+    }
 
     @Override
-    public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        ServerHttpRequest request = exchange.getRequest();
+    public GatewayFilter apply(Config config) {
+        return (exchange, chain) -> {
+            ServerHttpRequest request = exchange.getRequest();
 
-        if (!request.getHeaders().containsKey("Authorization")) {
-            return onError(exchange, "No Authorization header", HttpStatus.UNAUTHORIZED);
-        }
+            // Lấy header Authorization
+            if (!request.getHeaders().containsKey(HttpHeaders.AUTHORIZATION)) {
+                return onError(exchange, "No Authorization header");
+            }
 
-        String authHeader = request.getHeaders().getFirst("Authorization");
-        String token = null;
+            String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
 
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            token = authHeader.substring(7);
-        } else {
-            return onError(exchange, "Invalid Authorization header format", HttpStatus.UNAUTHORIZED);
-        }
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                return handleJwtAuth(exchange, chain, authHeader.substring(7));
+            }
 
+            if (authHeader != null && authHeader.startsWith("Token ")) {
+                return handlePatAuth(exchange, chain, authHeader.substring(6));
+            }
+
+            return onError(exchange, "Invalid Authorization header format");
+        };
+    }
+
+    /**
+     * Xử lý xác thực JWT (Stateless, tự validate)
+     */
+    private Mono<Void> handleJwtAuth(ServerWebExchange exchange, GatewayFilterChain chain, String token) {
         if (Boolean.FALSE.equals(jwtUtil.validateToken(token))) {
-            return onError(exchange, "Invalid token", HttpStatus.UNAUTHORIZED);
+            return onError(exchange, "Invalid JWT token");
         }
 
-        // Add user information to headers for downstream services
         String username = jwtUtil.extractUsername(token);
-        String role = jwtUtil.extractRole(token);
-
-        ServerHttpRequest modifiedRequest = request.mutate()
-                .header("X-User-Id", username)
-                .header("X-User-Role", role != null ? role : "USER")
-                .build();
-
+        Long userId = jwtUtil.extractUserId(token);
+        Collection<String> roles = jwtUtil.extractRoles(token);
+        String rolesString;
+        if (roles == null || roles.isEmpty()) {
+            return Mono.error(new UnauthorizedException("User has no roles"));
+        } else {
+            rolesString = String.join(",", roles);
+        }
+        ServerHttpRequest modifiedRequest = exchange.getRequest().mutate()
+                .header("X-User-Id", userId.toString())
+                .header("X-User-Name", username)
+                .header("X-User-Role", rolesString).build();
         return chain.filter(exchange.mutate().request(modifiedRequest).build());
     }
 
-    private Mono<Void> onError(ServerWebExchange exchange, String err, HttpStatus httpStatus) {
+    /**
+     * Xử lý xác thực PAT (Stateful, gọi sang auth-service)
+     */
+    private Mono<Void> handlePatAuth(ServerWebExchange exchange, GatewayFilterChain chain, String rawToken) {
+        return validateToken(rawToken).flatMap(userDto -> {
+            String rolesString;
+            if (userDto.getRoles() == null || userDto.getRoles().isEmpty()) {
+                return Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User has no roles"));
+            } else {
+                rolesString = String.join(",", (CharSequence) userDto.getRoles());
+            }
+            ServerHttpRequest modifiedRequest = exchange.getRequest().mutate()
+                    .header("X-User-Id", userDto.getUserId())
+                    .header("X-User-Name", userDto.getUserName())
+                    .header("X-User-Role", rolesString).build();
+            return chain.filter(exchange.mutate().request(modifiedRequest).build());
+        }).onErrorResume(e -> onError(exchange, "Invalid Personal Access Token"));
+    }
+
+    /**
+     * Phương thức helper để trả về lỗi
+     */
+    private Mono<Void> onError(ServerWebExchange exchange, String err) {
         ServerHttpResponse response = exchange.getResponse();
-        response.setStatusCode(httpStatus);
+        response.setStatusCode(HttpStatus.UNAUTHORIZED);
 
-        // Thêm security headers để tăng cường bảo mật
-        response.getHeaders().add("X-Content-Type-Options", "nosniff");
-        response.getHeaders().add("X-Frame-Options", "DENY");
-        response.getHeaders().add("X-XSS-Protection", "1; mode=block");
-        response.getHeaders().add("Referrer-Policy", "no-referrer");
+        DataBuffer buffer = response.bufferFactory().wrap(err.getBytes(StandardCharsets.UTF_8));
+        return response.writeWith(Mono.just(buffer));
+    }
 
-        log.error("Authentication error for path {}: {}",
-                exchange.getRequest().getPath().value(), err);
-        return response.setComplete();
+    /**
+     * Lớp Config, có thể để trống nếu không cần cấu hình gì thêm
+     */
+    public static class Config {
+    }
+
+    private Mono<UserDto> validateToken(String rawToken) {
+        return webClientBuilder.build()
+                .post()
+                .uri("lb://auth-service/api/auth/validate-pat")
+                .bodyValue(new PatValidationRequest(rawToken))
+                .retrieve()
+                .bodyToMono(UserDto.class)
+                .onErrorResume(e -> Mono.error(new PatValidationException("Invalid Personal Access Token")));
     }
 }

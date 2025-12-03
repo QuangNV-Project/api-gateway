@@ -22,6 +22,7 @@ public class SecurityConfig {
 
                 // Authorize all requests (authentication được handle bởi AuthenticationFilter)
                 .authorizeExchange(exchanges -> exchanges
+                        .pathMatchers("/api/**").permitAll()
                         .anyExchange().permitAll())
 
                 .build();

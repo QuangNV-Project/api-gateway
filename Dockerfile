@@ -1,17 +1,22 @@
-FROM openjdk:17-jdk-slim
-
+# 1. Build stage
+FROM maven:3.9.11-eclipse-temurin-21-noble AS build
 WORKDIR /app
-# Install curl (needed for HEALTHCHECK)
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
-# Copy the JAR file
-COPY target/api-gateway-*.jar app.jar
 
-# Expose port
-EXPOSE 8080
+# Copy pom.xml và tải dependencies trước (cache tốt hơn)
+COPY .m2/settings.xml /root/.m2/settings.xml
+COPY pom.xml .
+RUN mvn dependency:go-offline
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8080/actuator/health || exit 1
+# Copy source code và build
+COPY src ./src
+RUN mvn clean package -DskipTests
+
+# 2. Runtime stage
+FROM eclipse-temurin:21-jdk-alpine
+WORKDIR /app
+
+# Copy only the JAR from build stage
+COPY --from=build /app/target/*.jar app.jar
 
 # Run the application
 ENTRYPOINT ["java", "-jar", "app.jar"]
