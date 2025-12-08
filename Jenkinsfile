@@ -319,7 +319,7 @@ pipeline {
                     sh """
                         curl -s -X POST https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage \
                         -d chat_id=$TELEGRAM_CHAT_ID \
-                        -d text="✅ Pipeline succeeded! Project: api-gateway Job: $JOB_NAME (#$BUILD_NUMBER)"
+                        -d text="✅ Pipeline succeeded! Project: API GATEWAY Job: $JOB_NAME (#$BUILD_NUMBER)"
                     """
                 }
             }
@@ -334,7 +334,7 @@ pipeline {
                     sh """
                         curl -s -X POST https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage \
                         -d chat_id=$TELEGRAM_CHAT_ID \
-                        -d text="❌ Pipeline failed! Project: api-gateway Job: $JOB_NAME (#$BUILD_NUMBER)"
+                        -d text="❌ Pipeline failed! Project: API GATEWAY Job: $JOB_NAME (#$BUILD_NUMBER)"
                     """
                 }
             }
