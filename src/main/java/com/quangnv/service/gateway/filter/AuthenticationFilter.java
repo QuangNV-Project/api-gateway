@@ -75,16 +75,20 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
             return onError(exchange, "Invalid JWT token");
         }
 
-        String username = jwtUtil.extractUsername(token);
+        String username = jwtUtil.extractUserName(token);
         Long userId = jwtUtil.extractUserId(token);
         Collection<String> roles = jwtUtil.extractRoles(token);
-        String rolesString;
         if (roles == null || roles.isEmpty()) {
             return Mono.error(new UnauthorizedException("User has no roles"));
-        } else {
-            rolesString = String.join(",", roles);
         }
+        String rolesString = String.join(",", roles);
+
+        String authHeader = exchange.getRequest()
+                .getHeaders()
+                .getFirst(HttpHeaders.AUTHORIZATION);
+
         ServerHttpRequest modifiedRequest = exchange.getRequest().mutate()
+                .header(HttpHeaders.AUTHORIZATION, authHeader)
                 .header("X-User-Id", userId.toString())
                 .header("X-User-Name", username)
                 .header("X-User-Role", rolesString).build();
@@ -95,14 +99,16 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
      * Xử lý xác thực PAT (Stateful, gọi sang auth-service)
      */
     private Mono<Void> handlePatAuth(ServerWebExchange exchange, GatewayFilterChain chain, String rawToken) {
+        String authHeader = exchange.getRequest()
+                .getHeaders()
+                .getFirst(HttpHeaders.AUTHORIZATION);
         return validateToken(rawToken).flatMap(userDto -> {
-            String rolesString;
             if (userDto.getRoles() == null || userDto.getRoles().isEmpty()) {
                 return Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User has no roles"));
-            } else {
-                rolesString = String.join(",", (CharSequence) userDto.getRoles());
             }
+            String rolesString = String.join( ",", (CharSequence) userDto.getRoles());
             ServerHttpRequest modifiedRequest = exchange.getRequest().mutate()
+                    .header(HttpHeaders.AUTHORIZATION, authHeader)
                     .header("X-User-Id", userDto.getUserId())
                     .header("X-User-Name", userDto.getUserName())
                     .header("X-User-Role", rolesString).build();
