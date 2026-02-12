@@ -1,7 +1,6 @@
 package com.quangnv.service.gateway.filter;
 
 
-import com.quangnv.service.utility_shared.exception.NotFoundException;
 import com.quangnv.service.utility_shared.exception.UnauthorizedException;
 import lombok.AccessLevel;
 
