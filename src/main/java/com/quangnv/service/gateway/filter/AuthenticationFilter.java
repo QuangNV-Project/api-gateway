@@ -135,10 +135,13 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
     private Mono<UserDto> validateToken(String rawToken) {
         return webClientBuilder.build()
                 .post()
-                .uri("lb://auth-service/api/auth/validate-pat")
+                .uri("lb://auth-service/auth/validate-pat")
                 .bodyValue(new PatValidationRequest(rawToken))
                 .retrieve()
                 .bodyToMono(UserDto.class)
-                .onErrorResume(e -> Mono.error(new PatValidationException("Invalid Personal Access Token")));
+                .onErrorResume(e -> {
+                    log.error(e.getMessage());
+                    return Mono.error(new PatValidationException("Invalid Personal Access Token"));
+                });
     }
 }
