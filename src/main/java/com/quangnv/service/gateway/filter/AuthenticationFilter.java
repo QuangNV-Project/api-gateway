@@ -76,7 +76,8 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
         try {
             jwtUtil.validateToken(token);
         } catch (Exception e) {
-            return onError(exchange, "Invalid JWT: " + e.getMessage());
+            log.error("Invalid JWT: {}", e.getMessage());
+            return onError(exchange, "Invalid token");
         }
 
         String username = jwtUtil.extractUserName(token);
