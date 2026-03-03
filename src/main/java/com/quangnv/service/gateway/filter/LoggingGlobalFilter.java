@@ -108,7 +108,6 @@ public class LoggingGlobalFilter implements GlobalFilter, Ordered {
     private ServerHttpResponseDecorator wrapResponse(ServerWebExchange exchange, String requestId) {
         ServerHttpResponse response = exchange.getResponse();
         return new ServerHttpResponseDecorator(response) {
-            @Override
             public Mono<Void> writeWith(Flux<? extends DataBuffer> body) {
                 return DataBufferUtils.join(body)
                         .flatMap(dataBuffer -> {
