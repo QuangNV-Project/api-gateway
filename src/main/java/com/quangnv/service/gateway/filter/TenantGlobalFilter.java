@@ -34,7 +34,7 @@ public class TenantGlobalFilter implements GlobalFilter, Ordered {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        String domain = exchange.getRequest().getHeaders().getFirst("X-HOST-NAME");
+        String domain = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Host");
         if (domain == null) {
             domain = Objects.requireNonNull(exchange.getRequest().getHeaders().getHost()).getHostName();
         }

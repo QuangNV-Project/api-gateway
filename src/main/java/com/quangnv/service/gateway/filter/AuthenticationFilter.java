@@ -1,7 +1,7 @@
 package com.quangnv.service.gateway.filter;
 
 
-import com.quangnv.service.utility_shared.exception.UnauthorizedException;
+import com.quangnv.service.utility_shared.constant.HeaderConstants;
 import lombok.AccessLevel;
 
 import java.util.Collection;
@@ -69,28 +69,34 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
     /**
      * Xử lý xác thực JWT (Stateless, tự validate)
      */
-    private Mono<Void> handleJwtAuth(ServerWebExchange exchange, GatewayFilterChain chain, String token) {
-        if (Boolean.FALSE.equals(jwtUtil.validateToken(token))) {
-            return onError(exchange, "Invalid JWT token");
+    private Mono<Void> handleJwtAuth(ServerWebExchange exchange,
+                                     GatewayFilterChain chain,
+                                     String token) {
+
+        try {
+            jwtUtil.validateToken(token);
+        } catch (Exception e) {
+            log.error("Invalid JWT: {}", e.getMessage());
+            return onError(exchange, "Invalid token");
         }
 
         String username = jwtUtil.extractUserName(token);
         Long userId = jwtUtil.extractUserId(token);
         Collection<String> roles = jwtUtil.extractRoles(token);
+
         if (roles == null || roles.isEmpty()) {
-            return Mono.error(new UnauthorizedException("User has no roles"));
+            return onError(exchange, "User has no roles");
         }
+
         String rolesString = String.join(",", roles);
 
-        String authHeader = exchange.getRequest()
-                .getHeaders()
-                .getFirst(HttpHeaders.AUTHORIZATION);
-
         ServerHttpRequest modifiedRequest = exchange.getRequest().mutate()
-                .header(HttpHeaders.AUTHORIZATION, authHeader)
-                .header("X-User-Id", userId.toString())
-                .header("X-User-Name", username)
-                .header("X-User-Role", rolesString).build();
+                .headers(headers -> headers.remove(HttpHeaders.AUTHORIZATION))
+                .header(HeaderConstants.USER_ID, userId.toString())
+                .header(HeaderConstants.USER_NAME, username)
+                .header(HeaderConstants.USER_ROLE, rolesString)
+                .build();
+
         return chain.filter(exchange.mutate().request(modifiedRequest).build());
     }
 
@@ -135,10 +141,13 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
     private Mono<UserDto> validateToken(String rawToken) {
         return webClientBuilder.build()
                 .post()
-                .uri("lb://auth-service/api/auth/validate-pat")
+                .uri("lb://auth-service/auth/validate-pat")
                 .bodyValue(new PatValidationRequest(rawToken))
                 .retrieve()
                 .bodyToMono(UserDto.class)
-                .onErrorResume(e -> Mono.error(new PatValidationException("Invalid Personal Access Token")));
+                .onErrorResume(e -> {
+                    log.error(e.getMessage());
+                    return Mono.error(new PatValidationException("Invalid Personal Access Token"));
+                });
     }
 }
