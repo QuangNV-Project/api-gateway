@@ -27,9 +27,8 @@ public class CorsConfig {
                 corsProperties.getAllowedOrigins() != null &&
                 !corsProperties.getAllowedOrigins().isEmpty()) {
             // Nếu cho phép credentials, phải chỉ định origins cụ thể
-            config.setAllowedOrigins(corsProperties.getAllowedOrigins());
-            log.info("CORS configured with specific origins: {}", corsProperties.getAllowedOrigins());
-            config.setAllowCredentials(true);
+            config.setAllowedOriginPatterns(corsProperties.getAllowedOrigins());
+            config.setAllowCredentials(corsProperties.isAllowCredentials());
         } else {
             // Nếu không cần credentials, có thể dùng wildcard
             config.addAllowedOriginPattern("*");
