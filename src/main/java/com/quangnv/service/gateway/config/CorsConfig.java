@@ -4,12 +4,14 @@ import com.quangnv.service.gateway.data.CorsProperties;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsWebFilter;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
+@Slf4j
 @Configuration
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -26,6 +28,7 @@ public class CorsConfig {
                 !corsProperties.getAllowedOrigins().isEmpty()) {
             // Nếu cho phép credentials, phải chỉ định origins cụ thể
             config.setAllowedOrigins(corsProperties.getAllowedOrigins());
+            log.info("CORS configured with specific origins: {}", corsProperties.getAllowedOrigins());
             config.setAllowCredentials(true);
         } else {
             // Nếu không cần credentials, có thể dùng wildcard
