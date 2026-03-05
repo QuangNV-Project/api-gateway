@@ -26,11 +26,9 @@ public class CorsConfig {
         if (corsProperties.isAllowCredentials() &&
                 corsProperties.getAllowedOrigins() != null &&
                 !corsProperties.getAllowedOrigins().isEmpty()) {
-            // Nếu cho phép credentials, phải chỉ định origins cụ thể
             config.setAllowedOriginPatterns(corsProperties.getAllowedOrigins());
             config.setAllowCredentials(corsProperties.isAllowCredentials());
         } else {
-            // Nếu không cần credentials, có thể dùng wildcard
             config.addAllowedOriginPattern("*");
             config.setAllowCredentials(false);
         }
