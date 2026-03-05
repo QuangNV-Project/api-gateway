@@ -34,12 +34,12 @@ public class TenantGlobalFilter implements GlobalFilter, Ordered {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        String domain = exchange.getRequest().getHeaders().getFirst("X-Forwarded-Host");
-        if (domain == null) {
-            domain = Objects.requireNonNull(exchange.getRequest().getHeaders().getHost()).getHostName();
+        String tenantCode = exchange.getRequest().getHeaders().getFirst("X-Tenant-Code");
+        if (tenantCode == null) {
+            tenantCode = Objects.requireNonNull(exchange.getRequest().getHeaders().getHost()).getHostName();
         }
 
-        return getTenantIdByDomain(domain)
+        return getTenantIdByCode(tenantCode)
                 .flatMap(tenantDto -> {
                     ServerHttpRequest modifiedRequest = exchange.getRequest().mutate()
                             .header(HeaderConstants.TENANT_ID, tenantDto.getTenantId().toString())
@@ -62,25 +62,25 @@ public class TenantGlobalFilter implements GlobalFilter, Ordered {
     }
 
     @Cacheable("tenants")
-    public Mono<TenantDto> getTenantIdByDomain(String domain) {
-        log.info(">>> CACHE MISS. Calling Tenant Service for: {}", domain);
+    public Mono<TenantDto> getTenantIdByCode(String tenantCode) {
+        log.info(">>> CACHE MISS. Calling Tenant Service for: {}", tenantCode);
         return webClientBuilder
                 .baseUrl("http://" + ServiceConstant.ServiceName.TENANT_SERVICE.getService())
                 .build()
                 .get()
-                .uri("/tenant/by-domain?domain={domain}", domain)
+                .uri("/tenant/by-code?code={tenantCode}", tenantCode)
                 .retrieve()
                 .bodyToMono(new ParameterizedTypeReference<ApiResponse<TenantDto>>() {
                 })
                 .flatMap(apiResponse -> {
                     if (apiResponse.getData() == null || apiResponse.getData().getTenantId() == null) {
-                        return Mono.error(new TenantException(domain));
+                        return Mono.error(new TenantException(tenantCode));
                     }
                     return Mono.just(apiResponse.getData());
                 })
                 .onErrorResume(e -> {
                     log.error(">>> CACHE MISS. Fetched Tenant ID Failed: {}", e.getMessage());
-                    return Mono.error(new TenantException(domain));
+                    return Mono.error(new TenantException(tenantCode));
                 });
     }
 }
