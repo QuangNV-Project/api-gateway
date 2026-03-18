@@ -135,7 +135,7 @@ public class LoggingGlobalFilter implements GlobalFilter, Ordered {
     /** Đơn giản mask giá trị nhạy cảm trong JSON (password, token, ...). */
     private String maskSensitiveInJson(String json) {
         if (json == null || json.isEmpty()) return json;
-        return json.replaceAll("(\"(?:password|token|accessToken|refreshToken|secret)\"\\s*:\\s*)\"[^\"]*\"", "$1\"***\"");
+        return json.replaceAll("(\"(?:password|token|accessToken|refreshToken|secret|code)\"\\s*:\\s*)\"[^\"]*\"", "$1\"***\"");
     }
 
     @Override
