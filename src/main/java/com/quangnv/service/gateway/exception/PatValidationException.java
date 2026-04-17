@@ -8,5 +8,4 @@ public class PatValidationException extends RuntimeException {
     public PatValidationException(String message, Throwable cause) {
         super(message, cause);
     }
-
 }

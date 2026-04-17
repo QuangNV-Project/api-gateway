@@ -1,5 +1,6 @@
 package com.quangnv.service.gateway.filter;
 
+import com.quangnv.service.gateway.constant.CommonConstant;
 import com.quangnv.service.gateway.data.TenantDto;
 import com.quangnv.service.gateway.exception.TenantException;
 import com.quangnv.service.utility_shared.constant.HeaderConstants;
@@ -34,6 +35,11 @@ public class TenantGlobalFilter implements GlobalFilter, Ordered {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+        String path = exchange.getRequest().getPath().value();
+        if (path.equals(CommonConstant.FIN_TRACK_API_KEY_PREFIX) || path.startsWith(CommonConstant.FIN_TRACK_API_KEY_PREFIX + "/")) {
+            return chain.filter(exchange);
+        }
+
         String tenantCode = exchange.getRequest().getHeaders().getFirst("X-Tenant-Code");
         if (tenantCode == null) {
             tenantCode = Objects.requireNonNull(exchange.getRequest().getHeaders().getHost()).getHostName();

@@ -1,5 +1,6 @@
 package com.quangnv.service.gateway.filter;
 
+import com.quangnv.service.gateway.constant.CommonConstant;
 import com.quangnv.service.gateway.constant.RedisConstant;
 import lombok.AccessLevel;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +25,11 @@ public class TenantIpBanFilter implements GlobalFilter, Ordered {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+        String path = exchange.getRequest().getPath().value();
+        if (path.equals(CommonConstant.FIN_TRACK_API_KEY_PREFIX) || path.startsWith(CommonConstant.FIN_TRACK_API_KEY_PREFIX + "/")) {
+            return chain.filter(exchange);
+        }
+
         String tenantId = exchange.getRequest().getHeaders().getFirst("X-Tenant-ID");
         if (tenantId == null) {
             return chain.filter(exchange);

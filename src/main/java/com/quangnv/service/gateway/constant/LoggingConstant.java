@@ -4,7 +4,6 @@ package com.quangnv.service.gateway.constant;
  * Hằng số dùng cho logging request/response (tracking, debug).
  */
 public final class LoggingConstant {
-
     private LoggingConstant() {
     }
 

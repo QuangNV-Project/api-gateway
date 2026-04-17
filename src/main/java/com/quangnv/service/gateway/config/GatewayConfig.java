@@ -1,5 +1,6 @@
 package com.quangnv.service.gateway.config;
 
+import com.quangnv.service.gateway.constant.CommonConstant;
 import lombok.AccessLevel;
 
 import java.util.function.Function;
@@ -12,6 +13,7 @@ import org.springframework.context.annotation.Configuration;
 import com.quangnv.service.gateway.constant.RouteNameConstant;
 import org.springframework.cloud.gateway.route.builder.UriSpec;
 import com.quangnv.service.gateway.filter.AuthenticationFilter;
+import com.quangnv.service.gateway.filter.ApiKeyAuthFilter;
 import com.quangnv.service.utility_shared.constant.ServiceConstant;
 import org.springframework.cloud.gateway.route.builder.GatewayFilterSpec;
 import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
@@ -20,7 +22,8 @@ import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class GatewayConfig {
-    private AuthenticationFilter authFilter;
+    AuthenticationFilter authFilter;
+    ApiKeyAuthFilter apiKeyAuthFilter;
 
     @Bean
     public RouteLocator customRouteLocator(RouteLocatorBuilder builder) {
@@ -32,12 +35,23 @@ public class GatewayConfig {
         createServiceRoutes(routesBuilder, RouteNameConstant.TENANT, ServiceConstant.ServiceName.TENANT_SERVICE);
         createServiceRoutes(routesBuilder, RouteNameConstant.PAYMENT, ServiceConstant.ServiceName.PAYMENT_SERVICE);
         createServiceRoutes(routesBuilder, RouteNameConstant.PLATFORM, ServiceConstant.ServiceName.PLATFORM_SERVICE);
+        createFinTrackApiKeyRoute(routesBuilder);
         createServiceRoutes(routesBuilder, RouteNameConstant.FINANCE_TRACKING, ServiceConstant.ServiceName.FIN_TRACK_SERVICE);
 
         // Special routes
         routesBuilder.route("gateway-health", r -> r.path("/api/health/**")
                 .uri("no://op"));
         return routesBuilder.build();
+    }
+
+    private void createFinTrackApiKeyRoute(RouteLocatorBuilder.Builder builder) {
+        builder.route("public-fin-track", r -> r.path(
+                        CommonConstant.API_PREFIX + RouteNameConstant.FINANCE_TRACKING + "/public-webhook/**"
+                )
+                .filters(f -> f
+                        .stripPrefix(2)
+                        .filter(apiKeyAuthFilter))
+                .uri(ServiceConstant.ServiceName.FIN_TRACK_SERVICE.toLoadBalancedUri()));
     }
 
     /**
@@ -51,14 +65,14 @@ public class GatewayConfig {
 
         // 1. Tạo route PUBLIC
         builder.route(routeName, r -> r.path(
-                        "/api/" + routeName + "/public/**"
+                        CommonConstant.API_PREFIX + routeName + "/public/**"
                 )
                 .filters(f -> f.stripPrefix(3))
                 .uri(serviceUri));
 
         // 2. Tạo route PRIVATE
         builder.route(routeName + "-private", r -> r.path(
-                        "/api/" + routeName + "/private/**"
+                        CommonConstant.API_PREFIX + routeName + "/private/**"
                 )
                 .filters(applyAuthFilter()) // Áp dụng filter xác thực
                 .uri(serviceUri));
