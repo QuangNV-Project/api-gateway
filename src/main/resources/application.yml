@@ -13,6 +13,12 @@ spring:
         service-id: config-service
       username: ${CONFIG_NAME}
       password: ${CONFIG_PASSWORD}
+gateway:
+  logging:
+    max-body-log-bytes: ${GATEWAY_LOGGING_MAX_BODY_LOG_BYTES:4096}
+  tenant-cache:
+    maximum-size: ${TENANT_CACHE_MAXIMUM_SIZE:1000}
+    ttl: ${TENANT_CACHE_TTL:10m}
 eureka:
   client:
     service-url:

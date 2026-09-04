@@ -26,8 +26,8 @@ public class GatewayExceptionHandler {
     public ResponseEntity<ApiResponse<Object>> handleTenantException(TenantException ex, ServerWebExchange exchange) {
         String requestId = getRequestId(exchange);
         log.error("[{}] Tenant exception: {}", requestId, ex.getMessage());
-        ApiResponse<Object> response = ApiResponse.error(ex.getMessage(), HttpStatus.BAD_REQUEST.value());
-        return ResponseEntity.badRequest().body(response);
+        ApiResponse<Object> response = ApiResponse.error(ex.getSafeMessage(), ex.getStatus());
+        return ResponseEntity.status(ex.getStatus()).body(response);
     }
 
     @ExceptionHandler(PatValidationException.class)
@@ -35,7 +35,7 @@ public class GatewayExceptionHandler {
         String requestId = getRequestId(exchange);
         log.error("[{}] PatValidationException: {}", requestId, ex.getMessage());
         ApiResponse<Object> response = ApiResponse.error(ex.getMessage(), HttpStatus.UNAUTHORIZED.value());
-        return ResponseEntity.badRequest().body(response);
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
     }
 
     private static String getRequestId(ServerWebExchange exchange) {

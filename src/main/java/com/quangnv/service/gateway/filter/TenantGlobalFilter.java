@@ -1,51 +1,60 @@
 package com.quangnv.service.gateway.filter;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.quangnv.service.gateway.constant.CommonConstant;
+import com.quangnv.service.gateway.constant.LoggingConstant;
 import com.quangnv.service.gateway.data.TenantDto;
 import com.quangnv.service.gateway.exception.TenantException;
+import com.quangnv.service.gateway.service.TenantMetadataService;
 import com.quangnv.service.utility_shared.constant.HeaderConstants;
-import com.quangnv.service.utility_shared.constant.ServiceConstant;
 import com.quangnv.service.utility_shared.dto.ApiResponse;
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
-import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.core.Ordered;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
-import org.springframework.core.Ordered;
 
-import java.util.Objects;
+import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 
 @Slf4j
 @Component
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class TenantGlobalFilter implements GlobalFilter, Ordered {
-    WebClient.Builder webClientBuilder;
+    TenantMetadataService tenantMetadataService;
+    ObjectMapper objectMapper;
 
-    public TenantGlobalFilter(WebClient.Builder webClientBuilder) {
-        this.webClientBuilder = webClientBuilder;
+    public TenantGlobalFilter(TenantMetadataService tenantMetadataService, ObjectMapper objectMapper) {
+        this.tenantMetadataService = tenantMetadataService;
+        this.objectMapper = objectMapper;
     }
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String path = exchange.getRequest().getPath().value();
-        if (path.equals(CommonConstant.FIN_TRACK_API_KEY_PREFIX) || path.startsWith(CommonConstant.FIN_TRACK_API_KEY_PREFIX + "/")) {
+        if (isBypassed(path)) {
             return chain.filter(exchange);
         }
 
         String tenantCode = exchange.getRequest().getHeaders().getFirst("X-Tenant-Code");
-        if (tenantCode == null) {
-            tenantCode = Objects.requireNonNull(exchange.getRequest().getHeaders().getHost()).getHostName();
+        if (tenantCode == null && exchange.getRequest().getHeaders().getHost() != null) {
+            tenantCode = exchange.getRequest().getHeaders().getHost().getHostName();
+        }
+        if (tenantCode == null || tenantCode.isBlank()) {
+            return writeTenantError(exchange, new TenantException(
+                    TenantException.Kind.CLIENT_ERROR, HttpStatus.BAD_REQUEST.value(),
+                    "Tenant could not be identified"));
         }
 
-        return getTenantIdByCode(tenantCode)
+        return tenantMetadataService.findByCode(tenantCode)
+                .onErrorResume(TenantException.class, error -> writeTenantError(exchange, error))
                 .flatMap(tenantDto -> {
                     ServerHttpRequest modifiedRequest = exchange.getRequest().mutate()
                             .header(HeaderConstants.TENANT_ID, tenantDto.getTenantId().toString())
@@ -53,40 +62,37 @@ public class TenantGlobalFilter implements GlobalFilter, Ordered {
                             .header(HeaderConstants.PROJECT_TYPE, tenantDto.getProjectType())
                             .header(HeaderConstants.PROJECT_ID, tenantDto.getProjectId().toString())
                             .build();
-                    // Đi tiếp
                     return chain.filter(exchange.mutate().request(modifiedRequest).build());
-                })
-                .onErrorResume(e -> {
-                    exchange.getResponse().setStatusCode(HttpStatus.NOT_FOUND);
-                    return exchange.getResponse().setComplete();
                 });
+    }
+
+    private boolean isBypassed(String path) {
+        return path.equals(CommonConstant.FIN_TRACK_API_KEY_PREFIX)
+                || path.startsWith(CommonConstant.FIN_TRACK_API_KEY_PREFIX + "/")
+                || path.equals("/api/health/check");
+    }
+
+    private Mono<Void> writeTenantError(ServerWebExchange exchange, TenantException error) {
+        String requestId = exchange.getAttributeOrDefault(LoggingConstant.REQUEST_ID_ATTRIBUTE,
+                UUID.randomUUID().toString());
+        exchange.getAttributes().put(LoggingConstant.REQUEST_ID_ATTRIBUTE, requestId);
+        exchange.getResponse().getHeaders().set(LoggingConstant.REQUEST_ID_HEADER, requestId);
+        exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);
+        exchange.getResponse().setStatusCode(HttpStatus.valueOf(error.getStatus()));
+        try {
+            byte[] bytes = objectMapper.writeValueAsBytes(ApiResponse.error(error.getSafeMessage(), error.getStatus()));
+            return exchange.getResponse().writeWith(Mono.just(exchange.getResponse().bufferFactory().wrap(bytes)));
+        } catch (Exception serializationError) {
+            log.error("[{}] Could not serialize tenant error", requestId, serializationError);
+            byte[] fallback = "{\"message\":\"Tenant resolution failed\",\"status\":502}"
+                    .getBytes(StandardCharsets.UTF_8);
+            exchange.getResponse().setStatusCode(HttpStatus.BAD_GATEWAY);
+            return exchange.getResponse().writeWith(Mono.just(exchange.getResponse().bufferFactory().wrap(fallback)));
+        }
     }
 
     @Override
     public int getOrder() {
         return -100;
-    }
-
-    @Cacheable("tenants")
-    public Mono<TenantDto> getTenantIdByCode(String tenantCode) {
-        log.info(">>> CACHE MISS. Calling Tenant Service for: {}", tenantCode);
-        return webClientBuilder
-                .baseUrl("http://" + ServiceConstant.ServiceName.TENANT_SERVICE.getService())
-                .build()
-                .get()
-                .uri("/tenant/by-code?code={tenantCode}", tenantCode)
-                .retrieve()
-                .bodyToMono(new ParameterizedTypeReference<ApiResponse<TenantDto>>() {
-                })
-                .flatMap(apiResponse -> {
-                    if (apiResponse.getData() == null || apiResponse.getData().getTenantId() == null) {
-                        return Mono.error(new TenantException(tenantCode));
-                    }
-                    return Mono.just(apiResponse.getData());
-                })
-                .onErrorResume(e -> {
-                    log.error(">>> CACHE MISS. Fetched Tenant ID Failed: {}", e.getMessage());
-                    return Mono.error(new TenantException(tenantCode));
-                });
     }
 }
