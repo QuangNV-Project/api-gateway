@@ -18,4 +18,7 @@ public class RouteNameConstant {
 
     // Finance tracking
     public static final String FINANCE_TRACKING = "fin-track";
+
+     // Manga
+    public static final String MANGA = "manga";
 }

@@ -54,7 +54,10 @@ public class TenantGlobalFilter implements GlobalFilter, Ordered {
         }
 
         return tenantMetadataService.findByCode(tenantCode)
-                .onErrorResume(TenantException.class, error -> writeTenantError(exchange, error))
+                // Recover before invoking the downstream chain: its TenantException must remain visible
+                // to the gateway's regular exception handling rather than be reported as a lookup failure.
+                .onErrorResume(TenantException.class,
+                        error -> writeTenantError(exchange, error).then(Mono.empty()))
                 .flatMap(tenantDto -> {
                     ServerHttpRequest modifiedRequest = exchange.getRequest().mutate()
                             .header(HeaderConstants.TENANT_ID, tenantDto.getTenantId().toString())

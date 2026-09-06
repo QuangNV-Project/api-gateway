@@ -37,6 +37,8 @@ public class GatewayConfig {
         createServiceRoutes(routesBuilder, RouteNameConstant.PLATFORM, ServiceConstant.ServiceName.PLATFORM_SERVICE);
         createFinTrackApiKeyRoute(routesBuilder);
         createServiceRoutes(routesBuilder, RouteNameConstant.FINANCE_TRACKING, ServiceConstant.ServiceName.FIN_TRACK_SERVICE);
+        createServiceRoutes(routesBuilder, RouteNameConstant.MANGA, ServiceConstant.ServiceName.MANGA_SERVICE);
+
 
         // Special routes
         routesBuilder.route("gateway-health", r -> r.path("/api/health/**")

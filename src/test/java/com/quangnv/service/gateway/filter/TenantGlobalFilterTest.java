@@ -69,6 +69,6 @@ class TenantGlobalFilterTest {
     }
 
     private MockServerWebExchange exchange(String path, String host) {
-        return MockServerWebExchange.from(MockServerHttpRequest.get(path).host(host).build());
+        return MockServerWebExchange.from(MockServerHttpRequest.get(path).header("Host", host).build());
     }
 }
