@@ -19,6 +19,15 @@ gateway:
   tenant-cache:
     maximum-size: ${TENANT_CACHE_MAXIMUM_SIZE:1000}
     ttl: ${TENANT_CACHE_TTL:10m}
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,info
 eureka:
   client:
     service-url:
