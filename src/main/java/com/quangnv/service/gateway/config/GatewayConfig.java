@@ -50,7 +50,7 @@ public class GatewayConfig {
         builder.route("public-fin-track", r -> r.path(
                         CommonConstant.API_PREFIX + RouteNameConstant.FINANCE_TRACKING + "/public-webhook/**"
                 )
-                .filters(f -> f.stripPrefix(3))
+                .filters(f -> f.stripPrefix(2))
                 .uri(ServiceConstant.ServiceName.FIN_TRACK_SERVICE.toLoadBalancedUri()));
     }
 
